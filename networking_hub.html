@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Networking Hub</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    background: #0f0f13;
+    color: #e8e8ed;
+    min-height: 100vh;
+  }
+
+  /* ── Top Nav ─────────────────────────────────────── */
+  .topnav {
+    background: #17171d;
+    border-bottom: 1px solid #2a2a35;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-brand {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+    margin-right: 32px;
+    white-space: nowrap;
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+  }
+  .nav-tab {
+    padding: 6px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #8e8e99;
+    cursor: pointer;
+    border: none;
+    background: none;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-tab:hover { color: #e8e8ed; background: #1f1f28; }
+  .nav-tab.active { color: #fff; background: #1f1f28; }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #34c759;
+    box-shadow: 0 0 0 0 rgba(52,199,89,0.4);
+    animation: pulse 2s infinite;
+  }
+  .live-dot.offline { background: #ff453a; box-shadow: none; animation: none; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(52,199,89,0.4); }
+    70%  { box-shadow: 0 0 0 6px rgba(52,199,89,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); }
+  }
+  .live-text { color: #34c759; }
+  .live-text.offline { color: #ff453a; }
+  .sync-time { color: #5a5a68; font-size: 11px; margin-left: 4px; }
+
+  /* ── Page Layout ─────────────────────────────────── */
+  .page { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Stat Cards ──────────────────────────────────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .page { padding: 20px 16px; }
+  }
+  .stat {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .stat .num { font-size: 32px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+  .stat .label { font-size: 12px; color: #8e8e99; margin-top: 6px; }
+  .c-white  { color: #fff; }
+  .c-blue   { color: #4c9eff; }
+  .c-orange { color: #ffb340; }
+  .c-green  { color: #34c759; }
+  .c-gold   { color: #ffcc00; }
+
+  /* ── Section Label ───────────────────────────────── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5a5a68;
+    margin-bottom: 14px;
+  }
+
+  /* ── Timeline Card ───────────────────────────────── */
+  .timeline-card {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 28px 32px 24px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .timeline-card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c8c8d0;
+    margin-bottom: 20px;
+  }
+  #svg-timeline { width: 100%; display: block; }
+  .legend {
+    display: flex;
+    gap: 22px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #8e8e99;
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Empty State ─────────────────────────────────── */
+  .empty-state {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    color: #5a5a68;
+  }
+  .empty-state code {
+    background: #12121a;
+    color: #4c9eff;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+  }
+  .empty-state h3 { color: #8e8e99; margin-bottom: 10px; font-size: 16px; }
+
+  /* ── Search + Filter (Contacts tab) ─────────────── */
+  .contacts-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .search-input {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 9px;
+    padding: 10px 16px;
+    color: #e8e8ed;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input::placeholder { color: #5a5a68; }
+  .search-input:focus { border-color: #4c9eff; }
+
+  .filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pill {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #2a2a35;
+    background: #1c1c22;
+    color: #8e8e99;
+    transition: all 0.15s;
+  }
+  .pill:hover { border-color: #4a4a58; color: #e8e8ed; }
+  .pill.active { background: #252535; border-color: #4c9eff; color: #4c9eff; }
+
+  /* ── Contacts Table ──────────────────────────────── */
+  .contacts-table-wrap {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: #17171d;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #5a5a68;
+    border-bottom: 1px solid #2a2a35;
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid #1e1e28;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #1f1f2a; }
+  tbody tr.expanded { background: #1f1f2a; }
+  tbody td {
+    padding: 10px 16px;
+    vertical-align: middle;
+  }
+  td.num-col { color: #5a5a68; font-size: 11px; width: 40px; }
+  td.name-col { font-weight: 500; color: #e8e8ed; }
+  td.firm-col { color: #8e8e99; }
+  td.type-col { color: #6a6a78; font-size: 12px; }
+  td.date-col { color: #6a6a78; font-size: 12px; white-space: nowrap; }
+  td.li-col { width: 40px; text-align: center; }
+  td.li-col a {
+    color: #4c9eff;
+    text-decoration: none;
+    font-size: 12px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  td.li-col a:hover { opacity: 1; }
+
+  /* ── Status Badges ───────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .badge:hover { opacity: 0.8; }
+  .badge-pending         { background: #2a2a35; color: #8e8e99; }
+  .badge-queued          { background: #1a2a3d; color: #4c9eff; }
+  .badge-sent            { background: #2d2010; color: #ffb340; }
+  .badge-follow_up_queued{ background: #2d2210; color: #ffaa00; }
+  .badge-replied         { background: #102210; color: #34c759; }
+  .badge-call_done       { background: #25103a; color: #bf5fff; }
+  .badge-applied         { background: #2a2400; color: #ffcc00; }
+  .badge-drafted         { background: #1e1e28; color: #a0a0b0; }
+
+  /* ── Expanded Row Detail ─────────────────────────── */
+  .expand-row td {
+    padding: 0 !important;
+    background: #161620 !important;
+    cursor: default;
+  }
+  .expand-inner {
+    padding: 20px 24px 24px;
+    border-top: 1px solid #1e1e28;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) {
+    .expand-inner { grid-template-columns: 1fr; }
+  }
+  .expand-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #5a5a68;
+    margin-bottom: 10px;
+  }
+  .research-box {
+    background: #12121a;
+    border: 1px solid #2a2a35;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: #a8a8b8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .research-box::-webkit-scrollbar { width: 5px; }
+  .research-box::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 3px; }
+  .notes-textarea {
+    width: 100%;
+    background: #12121a;
+    border: 1px solid #2a2a35;
+    border-radius: 8px;
+    padding: 12px;
+    color: #e8e8ed;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .notes-textarea:focus { border-color: #4c9eff; }
+  .save-indicator {
+    font-size: 11px;
+    color: #5a5a68;
+    margin-top: 6px;
+    height: 16px;
+    transition: color 0.3s;
+  }
+  .save-indicator.saving { color: #ffb340; }
+  .save-indicator.saved  { color: #34c759; }
+
+  .email-edit-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .email-edit {
+    background: #12121a;
+    border: 1px solid #2a2a35;
+    border-radius: 7px;
+    padding: 7px 12px;
+    color: #e8e8ed;
+    font-size: 13px;
+    flex: 1;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .email-edit:focus { border-color: #4c9eff; }
+  .btn-save-email {
+    padding: 7px 14px;
+    border-radius: 7px;
+    background: #1a2a3d;
+    border: 1px solid #4c9eff33;
+    color: #4c9eff;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-save-email:hover { background: #1f3550; }
+
+  /* ── Call Prep Tab ───────────────────────────────── */
+  .callprep-header {
+    margin-bottom: 24px;
+  }
+  .callprep-select-wrap {
+    position: relative;
+  }
+  .callprep-select {
+    width: 100%;
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 9px;
+    padding: 10px 16px;
+    color: #e8e8ed;
+    font-size: 14px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .callprep-select:focus { border-color: #4c9eff; }
+  .callprep-select option { background: #1c1c22; }
+
+  .callprep-dossier {
+    display: none;
+  }
+  .callprep-dossier.visible { display: block; }
+  .callprep-empty {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    color: #5a5a68;
+    font-size: 14px;
+  }
+
+  .dossier-card {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .dossier-topbar {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .dossier-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.4px;
+  }
+  .dossier-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 13px;
+    color: #8e8e99;
+  }
+  .dossier-meta .sep { color: #3a3a48; }
+  .dossier-meta a {
+    color: #4c9eff;
+    text-decoration: none;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid #4c9eff33;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .dossier-meta a:hover { background: #1a2a3d; }
+
+  .dossier-section {
+    background: #1c1c22;
+    border: 1px solid #2a2a35;
+    border-radius: 12px;
+    padding: 22px 28px;
+    margin-bottom: 20px;
+  }
+  .dossier-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5a5a68;
+    margin-bottom: 14px;
+  }
+  .research-box-large {
+    font-size: 13px;
+    line-height: 1.75;
+    color: #a8a8b8;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .notes-textarea-large {
+    width: 100%;
+    background: #12121a;
+    border: 1px solid #2a2a35;
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #e8e8ed;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+    min-height: 240px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .notes-textarea-large:focus { border-color: #4c9eff; }
+
+  .autosave-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    height: 20px;
+  }
+  .autosave-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #2a2a35;
+    transition: background 0.3s;
+  }
+  .autosave-dot.saving { background: #ffb340; }
+  .autosave-dot.saved  { background: #34c759; }
+  .autosave-label {
+    font-size: 12px;
+    color: #5a5a68;
+    transition: color 0.3s;
+  }
+  .autosave-label.saving { color: #ffb340; }
+  .autosave-label.saved  { color: #34c759; }
+
+  /* ── Email Queue Tab ─────────────────────────────── */
+  .queue-date-block { margin-bottom: 32px; }
+  .queue-date-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .queue-date-title { font-size: 16px; font-weight: 700; color: #e8e8ed; }
+  .queue-date-count {
+    font-size: 12px; color: #5a5a68;
+    background: #1c1c22; border: 1px solid #2a2a35;
+    border-radius: 12px; padding: 2px 10px;
+  }
+  .queue-wave {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 5px;
+  }
+  .wave-followup { background: #2d2010; color: #ffb340; }
+  .wave-cold     { background: #1a2a3d; color: #4c9eff; }
+  .wave-mixed    { background: #1c1c22; color: #8e8e99; }
+  td.time-col {
+    color: #e8e8ed; font-size: 13px; font-weight: 600;
+    font-family: "SF Mono", Menlo, monospace;
+    white-space: nowrap; width: 90px;
+  }
+  td.to-col {
+    color: #6a6a78; font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  td.subj-col {
+    color: #8e8e99; font-size: 12px;
+    max-width: 300px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .type-tag {
+    display: inline-block; padding: 2px 9px;
+    border-radius: 4px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.03em; white-space: nowrap;
+  }
+  .type-cold     { background: #1a2a3d; color: #4c9eff; }
+  .type-followup { background: #2d2010; color: #ffb340; }
+
+  /* ── Connections Tab ─────────────────────────────── */
+  .connections-hero {
+    display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .conn-stat-card {
+    background: #1c1c22; border: 1px solid #2a2a35;
+    border-radius: 10px; padding: 16px 22px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .conn-stat-card .num { font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: -0.8px; }
+  .conn-stat-card .lbl { font-size: 12px; color: #8e8e99; }
+  td.notes-preview {
+    color: #5a5a68; font-size: 12px; max-width: 220px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-style: italic;
+  }
+
+  /* ── Connections redesign ────────────────────────── */
+  .call-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 5px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .call-overdue  { background: #3a0f0f; color: #ff453a; }
+  .call-soon     { background: #2d2010; color: #ffb340; }
+  .call-upcoming { background: #102210; color: #34c759; }
+  .call-ghost    { background: #1e1e28; color: #5a5a68; }
+  .call-none     { background: #1c1c22; color: #5a5a68; }
+
+  .conn-last-called { color: #8e8e99; font-size: 12px; }
+  .conn-never       { color: #3a3a48; font-size: 12px; font-style: italic; }
+
+  td.conn-notes-col {
+    color: #6a6a78; font-size: 12px; max-width: 180px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── General To-Do's ─────────────────────────────── */
+  .todo-check {
+    width: 16px; height: 16px; cursor: pointer;
+    accent-color: #34c759;
+  }
+  tr.todo-done td { opacity: 0.35; text-decoration: line-through; }
+  tr.todo-done .todo-check { accent-color: #5a5a68; }
+
+  /* ── Connection expand row ───────────────────────── */
+  .conn-expand-row td { padding: 0 !important; background: #161620 !important; cursor: default; }
+  .conn-expand-inner { padding: 16px 24px 20px; border-top: 1px solid #1e1e28; }
+  .conn-expand-top { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .conn-expand-body { display: grid; grid-template-columns: 1fr 210px; gap: 20px; }
+  tbody tr.conn-row { cursor: pointer; }
+  tbody tr.conn-row.expanded { background: #1f1f2a; }
+  .date-input {
+    background: #12121a; border: 1px solid #2a2a35; border-radius: 7px;
+    padding: 7px 12px; color: #e8e8ed; font-size: 13px; width: 100%;
+    outline: none; transition: border-color 0.15s; font-family: inherit;
+    color-scheme: dark;
+  }
+  .date-input:focus { border-color: #4c9eff; }
+  .status-select {
+    background: #12121a; border: 1px solid #2a2a35; border-radius: 7px;
+    padding: 7px 12px; color: #e8e8ed; font-size: 13px; max-width: 130px;
+    outline: none; font-family: inherit; appearance: none; cursor: pointer;
+  }
+  .btn-called-today {
+    padding: 6px 14px; border-radius: 7px; background: #102210;
+    border: 1px solid #34c75933; color: #34c759; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;
+  }
+  .btn-called-today:hover { background: #163316; }
+
+  /* ── Incoming Analysts Tab ───────────────────────── */
+  .strategy-card {
+    background: #1c1c22; border: 1px solid #2a2a35; border-radius: 12px;
+    padding: 22px 28px; margin-bottom: 28px;
+  }
+  .strategy-card .card-title { font-size: 13px; font-weight: 600; color: #c8c8d0; margin-bottom: 12px; }
+  .strategy-body { font-size: 13px; line-height: 1.75; color: #a8a8b8; }
+  .strategy-body strong { color: #e8e8ed; }
+  .strategy-tip {
+    margin-top: 14px; padding: 12px 16px; background: #12121a;
+    border: 1px solid #2a2a35; border-radius: 8px;
+    font-size: 12px; color: #5a5a68; line-height: 1.7;
+  }
+  .strategy-tip code {
+    background: #1c1c22; color: #4c9eff; padding: 1px 6px;
+    border-radius: 4px; font-family: "SF Mono", Menlo, monospace;
+  }
+  .inline-note-input {
+    background: transparent; border: none; outline: none;
+    color: #8e8e99; font-size: 12px; width: 100%; font-family: inherit;
+    padding: 2px 0;
+  }
+  .inline-note-input::placeholder { color: #3a3a48; }
+  .inline-note-input:focus { color: #e8e8ed; }
+  td.check-col { text-align: center; width: 110px; }
+  .progress-bar-wrap {
+    background: #1c1c22; border: 1px solid #2a2a35; border-radius: 10px;
+    padding: 14px 20px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .progress-bar-track {
+    flex: 1; min-width: 140px; height: 6px; background: #2a2a35; border-radius: 3px; overflow: hidden;
+  }
+  .progress-bar-fill { height: 100%; background: #4c9eff; border-radius: 3px; transition: width 0.4s; }
+  .progress-label { font-size: 12px; color: #8e8e99; white-space: nowrap; }
+  .progress-count { font-size: 13px; font-weight: 600; color: #4c9eff; }
+</style>
+</head>
+<body>
+
+<!-- ── Navigation ───────────────────────────────────── -->
+<nav class="topnav">
+  <div class="nav-brand">Networking Hub</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('contacts')">Contacts</button>
+    <button class="nav-tab" onclick="switchTab('callprep')">Call Prep</button>
+    <button class="nav-tab" onclick="switchTab('queue')">Email Queue</button>
+    <button class="nav-tab" onclick="switchTab('connections')">Connections</button>
+    <button class="nav-tab" onclick="switchTab('incoming')">Incoming Analysts</button>
+    <button class="nav-tab" onclick="switchTab('todos')">General To-Do's</button>
+  </div>
+  <div class="live-indicator">
+    <div class="live-dot" id="live-dot"></div>
+    <span class="live-text" id="live-text">Live</span>
+    <span class="sync-time" id="sync-time"></span>
+  </div>
+</nav>
+
+<!-- ── Dashboard Tab ───────────────────────────────── -->
+<div class="tab-content active" id="tab-dashboard">
+  <div class="page">
+    <div class="stats" id="stats-row">
+      <div class="stat"><div class="num c-white" id="stat-total">—</div><div class="label">Total</div></div>
+      <div class="stat"><div class="num c-blue"  id="stat-queued">—</div><div class="label">Queued</div></div>
+      <div class="stat"><div class="num c-orange" id="stat-sent">—</div><div class="label">Sent</div></div>
+      <div class="stat"><div class="num c-green"  id="stat-replied">—</div><div class="label">Replied</div></div>
+      <div class="stat"><div class="num c-gold"   id="stat-applied">—</div><div class="label">Applied</div></div>
+    </div>
+
+    <div class="timeline-card">
+      <div class="card-title">Send Timeline</div>
+      <svg id="svg-timeline" height="180"></svg>
+      <div class="legend" id="timeline-legend"></div>
+    </div>
+
+    <div id="dashboard-empty" class="empty-state" style="display:none;">
+      <h3>No contacts yet</h3>
+      <p>Run <code>python main.py --csv</code> to generate outreach and populate your contacts.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Contacts Tab ─────────────────────────────────── -->
+<div class="tab-content" id="tab-contacts">
+  <div class="page">
+    <div class="contacts-toolbar">
+      <input class="search-input" id="contact-search" type="text"
+             placeholder="Search name, firm, email..." oninput="renderContacts()">
+      <div class="filter-pills" id="filter-pills">
+        <button class="pill active" data-filter="all" onclick="setFilter(this, 'all')">All</button>
+        <button class="pill" data-filter="pending" onclick="setFilter(this, 'pending')">Pending</button>
+        <button class="pill" data-filter="queued" onclick="setFilter(this, 'queued')">Queued</button>
+        <button class="pill" data-filter="sent" onclick="setFilter(this, 'sent')">Sent</button>
+        <button class="pill" data-filter="follow_up_queued" onclick="setFilter(this, 'follow_up_queued')">Follow-up</button>
+        <button class="pill" data-filter="replied" onclick="setFilter(this, 'replied')">Replied</button>
+        <button class="pill" data-filter="call_done" onclick="setFilter(this, 'call_done')">Call Done</button>
+        <button class="pill" data-filter="applied" onclick="setFilter(this, 'applied')">Applied</button>
+      </div>
+    </div>
+
+    <div class="contacts-table-wrap" id="contacts-table-wrap">
+      <div class="empty-state" style="padding: 40px;">
+        <h3>Loading...</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Call Prep Tab ────────────────────────────────── -->
+<div class="tab-content" id="tab-callprep">
+  <div class="page">
+    <div class="callprep-header">
+      <p class="section-label" style="margin-bottom: 10px;">Select Contact</p>
+      <div class="callprep-select-wrap">
+        <select class="callprep-select" id="callprep-select" onchange="loadDossier()">
+          <option value="">— Choose a contact —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="callprep-empty" id="callprep-empty">
+      Select a contact above to view their dossier
+    </div>
+
+    <div class="callprep-dossier" id="callprep-dossier">
+      <div class="dossier-card" id="dossier-header-card"></div>
+      <div class="dossier-section">
+        <h4>Research Notes</h4>
+        <div class="research-box-large" id="dossier-research"></div>
+      </div>
+      <div class="dossier-section">
+        <h4>Call Notes</h4>
+        <textarea class="notes-textarea-large" id="dossier-notes"
+                  placeholder="Add your call notes here..."
+                  oninput="scheduleAutosave()"></textarea>
+        <div class="autosave-bar">
+          <div class="autosave-dot" id="autosave-dot"></div>
+          <span class="autosave-label" id="autosave-label"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Email Queue Tab ───────────────────────────── -->
+<div class="tab-content" id="tab-queue">
+  <div class="page">
+    <div class="section-label" style="margin-bottom:22px;">Scheduled Email Queue</div>
+    <div id="queue-content">
+      <div class="empty-state"><h3>Loading queue...</h3></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Connections Tab ──────────────────────────── -->
+<div class="tab-content" id="tab-connections">
+  <div class="page">
+    <div class="connections-hero">
+      <div class="conn-stat-card">
+        <div class="num c-white" id="conn-stat-total">—</div>
+        <div class="lbl">Total Connected</div>
+      </div>
+      <div class="conn-stat-card">
+        <div class="num c-green" id="conn-stat-active">—</div>
+        <div class="lbl">Active</div>
+      </div>
+      <div class="conn-stat-card">
+        <div class="num" style="color:#ff453a" id="conn-stat-overdue">—</div>
+        <div class="lbl">Overdue</div>
+      </div>
+      <div class="conn-stat-card">
+        <div class="num c-orange" id="conn-stat-due-soon">—</div>
+        <div class="lbl">Due This Week</div>
+      </div>
+    </div>
+    <div id="connections-content">
+      <div class="empty-state"><h3>Loading...</h3></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Incoming Analysts Tab ─────────────────── -->
+<div class="tab-content" id="tab-incoming">
+  <div class="page">
+    <div class="strategy-card">
+      <div class="card-title">Strategy — Why Target Incoming Analysts?</div>
+      <div class="strategy-body">
+        Incoming analysts (starting July / August) are <strong>the most accessible people at any firm</strong>.
+        They haven't built walls yet. They're eager to meet people in the same boat. And crucially —
+        a warm "I know that analyst" moment during a superday or info call is worth 10 cold emails to a VP.
+        Message them <em>before</em> recruiting season, so by the time it starts you're already a name they recognize.
+        <div class="strategy-tip">
+          <strong style="color:#c8c8d0;">How to find them on LinkedIn</strong><br>
+          1. Search <code>[Firm name] analyst 2025</code> or <code>[Firm] analyst class of 2025</code><br>
+          2. Go to the firm's LinkedIn page → People → filter "Past 90 days" (recently joined)<br>
+          3. Check the firm's own LinkedIn posts — they often post "Welcome to our incoming class!"<br>
+          4. Filter your 2nd-degree connections by company — new grads at target firms are often just 2 hops away
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-bar-wrap" id="incoming-progress-wrap">
+      <span class="progress-label">Overall Progress</span>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="incoming-progress-fill" style="width:0%"></div>
+      </div>
+      <span class="progress-count" id="incoming-progress-label">0 / 0 firms messaged</span>
+    </div>
+
+    <div class="section-label" style="margin-bottom:14px;">Target Firms Tracker</div>
+    <div class="contacts-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Firm</th>
+            <th>Type</th>
+            <th class="check-col">Searched LinkedIn</th>
+            <th class="check-col">Messaged</th>
+            <th>Names / Notes</th>
+          </tr>
+        </thead>
+        <tbody id="incoming-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── General To-Do's Tab ───────────────────── -->
+<div class="tab-content" id="tab-todos">
+  <div class="page">
+    <div class="section-label" style="margin-bottom:22px;">Warm Contacts — Reach Out</div>
+    <div class="contacts-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Relationship</th>
+            <th>Notes / Action</th>
+            <th>Done</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num-col">1</td>
+            <td class="name-col">Harper Vasquez</td>
+            <td class="type-col">Direct connection</td>
+            <td class="firm-col">Reconnect and discuss recruiting path</td>
+            <td><input type="checkbox" class="todo-check" onchange="toggleTodo(this,'harper-vasquez')"></td>
+          </tr>
+          <tr>
+            <td class="num-col">2</td>
+            <td class="name-col">Devin Shah</td>
+            <td class="type-col">Family contact</td>
+            <td class="firm-col">Ask for an intro; corporate development background</td>
+            <td><input type="checkbox" class="todo-check" onchange="toggleTodo(this,'devin-shah')"></td>
+          </tr>
+          <tr>
+            <td class="num-col">3</td>
+            <td class="name-col">Robin Alvarez</td>
+            <td class="type-col">Direct connection</td>
+            <td class="firm-col">Reach out directly; discuss the analyst path</td>
+            <td><input type="checkbox" class="todo-check" onchange="toggleTodo(this,'robin-alvarez')"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   State
+   ═══════════════════════════════════════════════════════ */
+let allContacts = [];
+let queueData = [];
+let connectionsData = [];
+let currentFilter = 'all';
+let expandedId = null;
+let expandedConnId = null;
+let pollTimer = null;
+let lastSynced = null;
+let isOnline = false;
+
+// Per-row save timers (contacts tab)
+const saveTimers = {};
+const connSaveTimers = {};
+const contactFieldTimers = {};
+
+// Call prep save timer
+let callprepSaveTimer = null;
+let callprepContactId = null;
+
+/* ═══════════════════════════════════════════════════════
+   Status cycle & display helpers
+   ═══════════════════════════════════════════════════════ */
+const STATUS_CYCLE = ['pending','queued','sent','replied','call_done'];
+const STATUS_LABELS = {
+  pending: 'Pending',
+  queued: 'Queued',
+  sent: 'Sent',
+  follow_up_queued: 'Follow-up',
+  replied: 'Replied',
+  call_done: 'Call Done',
+  applied: 'Applied',
+  drafted: 'Drafted',
+};
+
+function badgeHtml(status) {
+  const label = STATUS_LABELS[status] || status;
+  const cls = 'badge badge-' + (status || 'pending');
+  return `<span class="${cls}" title="Click to advance status">${label}</span>`;
+}
+
+function cycleStatus(currentStatus) {
+  const idx = STATUS_CYCLE.indexOf(currentStatus);
+  if (idx === -1) return currentStatus; // don't cycle applied/follow_up_queued
+  return STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Data fetching & polling
+   ═══════════════════════════════════════════════════════ */
+async function fetchContacts() {
+  try {
+    const res = await fetch('/api/contacts');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    allContacts = data.contacts || [];
+    lastSynced = Date.now();
+    if (!isOnline) {
+      isOnline = true;
+      setLiveState(true);
+    }
+    renderAll();
+    updateSyncTime();
+  } catch (err) {
+    console.warn('Poll failed:', err);
+    if (isOnline) {
+      isOnline = false;
+      setLiveState(false);
+    }
+    // If no contacts at all yet, show empty state
+    if (allContacts.length === 0) renderEmptyState();
+  }
+}
+
+function setLiveState(online) {
+  const dot = document.getElementById('live-dot');
+  const txt = document.getElementById('live-text');
+  if (online) {
+    dot.className = 'live-dot';
+    txt.className = 'live-text';
+    txt.textContent = 'Live';
+  } else {
+    dot.className = 'live-dot offline';
+    txt.className = 'live-text offline';
+    txt.textContent = 'Offline';
+    document.getElementById('sync-time').textContent = '';
+  }
+}
+
+function updateSyncTime() {
+  if (!lastSynced) return;
+  const secs = Math.round((Date.now() - lastSynced) / 1000);
+  const el = document.getElementById('sync-time');
+  if (secs < 5) el.textContent = '';
+  else if (secs < 60) el.textContent = `${secs}s ago`;
+  else el.textContent = `${Math.round(secs/60)}m ago`;
+}
+
+function startPolling() {
+  fetchContacts();
+  fetchQueue();
+  fetchConnections();
+  pollTimer = setInterval(fetchContacts, 15000);
+  setInterval(updateSyncTime, 5000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   API calls
+   ═══════════════════════════════════════════════════════ */
+async function patchContact(id, updates) {
+  try {
+    const res = await fetch(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const updated = await res.json();
+    // Update local cache
+    const idx = allContacts.findIndex(c => c.id === id);
+    if (idx !== -1) allContacts[idx] = updated;
+    return updated;
+  } catch (err) {
+    console.error('PATCH failed:', err);
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Tab switching
+   ═══════════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const names = ['dashboard','contacts','callprep','queue','connections','incoming','todos'];
+  const idx = names.indexOf(name);
+  if (idx !== -1) tabs[idx].classList.add('active');
+  if (name === 'callprep') populateCallprepSelect();
+  if (name === 'queue') renderQueue();
+  if (name === 'connections') renderConnections();
+  if (name === 'incoming') renderIncoming();
+  if (name === 'todos') restoreTodos();
+}
+
+/* ═══════════════════════════════════════════════════════
+   Render All
+   ═══════════════════════════════════════════════════════ */
+function renderAll() {
+  renderStats();
+  renderTimeline();
+  renderContacts();
+  // Refresh call prep if open
+  if (callprepContactId) {
+    const c = allContacts.find(c => c.id === callprepContactId);
+    if (c) updateDossierNonDestructive(c);
+  }
+  // Refresh callprep select options (non-destructively)
+  const sel = document.getElementById('callprep-select');
+  if (sel && document.getElementById('tab-callprep').classList.contains('active')) {
+    populateCallprepSelect();
+  }
+}
+
+function renderEmptyState() {
+  const wrap = document.getElementById('contacts-table-wrap');
+  wrap.innerHTML = `
+    <div class="empty-state" style="padding:48px;text-align:center;">
+      <h3>No contacts yet</h3>
+      <p style="margin-top:10px;">Run <code>python main.py --csv</code> to generate outreach and populate your contacts.</p>
+    </div>`;
+  document.getElementById('dashboard-empty').style.display = 'block';
+}
+
+/* ═══════════════════════════════════════════════════════
+   Stats
+   ═══════════════════════════════════════════════════════ */
+function renderStats() {
+  const counts = { total: allContacts.length, queued: 0, sent: 0, replied: 0, applied: 0 };
+  for (const c of allContacts) {
+    if (c.status === 'queued' || c.status === 'follow_up_queued') counts.queued++;
+    if (c.status === 'sent') counts.sent++;
+    if (c.status === 'replied') counts.replied++;
+    if (c.status === 'applied') counts.applied++;
+  }
+  document.getElementById('stat-total').textContent  = counts.total;
+  document.getElementById('stat-queued').textContent = counts.queued;
+  document.getElementById('stat-sent').textContent   = counts.sent;
+  document.getElementById('stat-replied').textContent = counts.replied;
+  document.getElementById('stat-applied').textContent = counts.applied;
+
+  if (allContacts.length > 0) {
+    document.getElementById('dashboard-empty').style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Timeline SVG
+   ═══════════════════════════════════════════════════════ */
+function renderTimeline() {
+  const svg = document.getElementById('svg-timeline');
+  const legendEl = document.getElementById('timeline-legend');
+
+  // Gather contacts with a scheduled_at or sent_at date
+  const events = [];
+  for (const c of allContacts) {
+    const dateStr = c.scheduled_at || c.sent_at;
+    if (!dateStr) continue;
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d)) continue;
+      events.push({ date: d, status: c.status, name: c.name });
+    } catch { /* skip */ }
+  }
+
+  if (events.length === 0) {
+    svg.innerHTML = `<text x="50%" y="90" text-anchor="middle" fill="#5a5a68" font-size="13" font-family="-apple-system,sans-serif">No scheduled events</text>`;
+    legendEl.innerHTML = '';
+    return;
+  }
+
+  // Group by date string (YYYY-MM-DD)
+  const byDay = {};
+  for (const e of events) {
+    const key = e.date.toISOString().slice(0, 10);
+    if (!byDay[key]) byDay[key] = [];
+    byDay[key].push(e);
+  }
+
+  const days = Object.keys(byDay).sort();
+  const W = svg.parentElement.clientWidth || 800;
+  const H = 180;
+  const padL = 48, padR = 32, padT = 20, padB = 40;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const maxCount = Math.max(...days.map(d => byDay[d].length));
+  const xStep = days.length > 1 ? plotW / (days.length - 1) : plotW / 2;
+
+  const STATUS_COLORS = {
+    queued: '#4c9eff',
+    sent: '#ffb340',
+    follow_up_queued: '#ffaa00',
+    replied: '#34c759',
+    call_done: '#bf5fff',
+    applied: '#ffcc00',
+    pending: '#5a5a68',
+    drafted: '#6a6a78',
+  };
+
+  let svgContent = ``;
+
+  // Grid lines
+  const gridSteps = Math.min(maxCount, 5);
+  for (let i = 0; i <= gridSteps; i++) {
+    const y = padT + plotH - (i / gridSteps) * plotH;
+    svgContent += `<line x1="${padL}" y1="${y}" x2="${padL+plotW}" y2="${y}" stroke="#1e1e28" stroke-width="1"/>`;
+    if (i > 0) svgContent += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" fill="#5a5a68" font-size="10" font-family="-apple-system,sans-serif">${i}</text>`;
+  }
+
+  // Bars
+  const barW = Math.max(4, Math.min(28, xStep * 0.5));
+  days.forEach((day, i) => {
+    const x = padL + i * xStep;
+    const items = byDay[day];
+    const count = items.length;
+    const barH = (count / Math.max(maxCount, 1)) * plotH;
+    const y = padT + plotH - barH;
+
+    // Determine dominant color by most common status
+    const statusCounts = {};
+    for (const ev of items) { statusCounts[ev.status] = (statusCounts[ev.status]||0)+1; }
+    const dominant = Object.entries(statusCounts).sort((a,b)=>b[1]-a[1])[0][0];
+    const color = STATUS_COLORS[dominant] || '#5a5a68';
+
+    svgContent += `<rect x="${x - barW/2}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="${color}" opacity="0.85"/>`;
+
+    // Date label
+    const d = new Date(day + 'T12:00:00');
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    svgContent += `<text x="${x}" y="${H - padB + 16}" text-anchor="middle" fill="#5a5a68" font-size="10" font-family="-apple-system,sans-serif">${label}</text>`;
+  });
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = svgContent;
+
+  // Legend
+  const seenStatuses = [...new Set(events.map(e => e.status))];
+  legendEl.innerHTML = seenStatuses.map(s => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${STATUS_COLORS[s]||'#5a5a68'}"></div>
+      ${STATUS_LABELS[s]||s}
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════
+   Contacts Tab
+   ═══════════════════════════════════════════════════════ */
+function setFilter(el, filter) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = filter;
+  expandedId = null;
+  renderContacts();
+}
+
+function renderContacts() {
+  const query = (document.getElementById('contact-search').value || '').toLowerCase();
+  const wrap = document.getElementById('contacts-table-wrap');
+
+  let filtered = allContacts.filter(c => {
+    const matchFilter = currentFilter === 'all' || c.status === currentFilter;
+    const matchSearch = !query
+      || (c.name||'').toLowerCase().includes(query)
+      || (c.firm||'').toLowerCase().includes(query)
+      || (c.email||'').toLowerCase().includes(query);
+    return matchFilter && matchSearch;
+  });
+
+  if (allContacts.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state" style="padding:48px;text-align:center;">
+        <h3>No contacts yet</h3>
+        <p style="margin-top:10px;">Run <code>python main.py --csv</code> to generate outreach and populate your contacts.</p>
+      </div>`;
+    return;
+  }
+
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-state" style="padding:32px;text-align:center;"><h3>No matches</h3></div>`;
+    return;
+  }
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Firm</th>
+        <th>Status</th>
+        <th>Type</th>
+        <th>Send Date</th>
+        <th>LI</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  filtered.forEach((c, idx) => {
+    const isExpanded = expandedId === c.id;
+    const rowCls = isExpanded ? 'expanded' : '';
+    const dateStr = fmtDate(c.scheduled_at || c.sent_at);
+    const liLink = c.linkedin_url
+      ? `<a href="${c.linkedin_url}" target="_blank" onclick="event.stopPropagation()">↗</a>`
+      : '';
+
+    html += `<tr class="${rowCls}" onclick="toggleExpand('${c.id}')">
+      <td class="num-col">${idx+1}</td>
+      <td class="name-col">${escHtml(c.name||'')}</td>
+      <td class="firm-col">${escHtml(c.firm||'')}</td>
+      <td><span class="badge badge-${c.status||'pending'}" onclick="event.stopPropagation(); advanceStatus('${c.id}')">${STATUS_LABELS[c.status]||c.status}</span></td>
+      <td class="type-col">${escHtml(c.email_type||'')}</td>
+      <td class="date-col">${dateStr}</td>
+      <td class="li-col">${liLink}</td>
+    </tr>`;
+
+    if (isExpanded) {
+      const research = c.research || '';
+      const notes = c.call_notes || '';
+      const email = c.email || '';
+      html += `<tr class="expand-row">
+        <td colspan="7">
+          <div class="expand-inner">
+            <div class="expand-section">
+              <h4>Research Notes</h4>
+              <div class="research-box">${escHtml(research) || '<span style="color:#3a3a48;font-style:italic;">No research notes.</span>'}</div>
+              <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                  <h4 style="margin-bottom:6px;">Name</h4>
+                  <input class="email-edit" id="name-edit-${c.id}" value="${escAttr(c.name||'')}"
+                         placeholder="Name" onclick="event.stopPropagation()"
+                         oninput="scheduleContactFieldSave('${c.id}')">
+                </div>
+                <div>
+                  <h4 style="margin-bottom:6px;">Firm</h4>
+                  <input class="email-edit" id="firm-edit-${c.id}" value="${escAttr(c.firm||'')}"
+                         placeholder="Firm" onclick="event.stopPropagation()"
+                         oninput="scheduleContactFieldSave('${c.id}')">
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <h4 style="margin-bottom:6px;">Email</h4>
+                <div class="email-edit-wrap">
+                  <input class="email-edit" id="email-edit-${c.id}" type="email" value="${escAttr(email)}" placeholder="email@domain.com" onclick="event.stopPropagation()">
+                  <button class="btn-save-email" onclick="event.stopPropagation(); saveEmail('${c.id}')">Save</button>
+                </div>
+              </div>
+            </div>
+            <div class="expand-section">
+              <h4>Call Notes</h4>
+              <textarea class="notes-textarea" id="notes-${c.id}"
+                        onclick="event.stopPropagation()"
+                        oninput="scheduleRowSave('${c.id}')">${escHtml(notes)}</textarea>
+              <div class="save-indicator" id="save-ind-${c.id}"></div>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+function toggleExpand(id) {
+  expandedId = (expandedId === id) ? null : id;
+  renderContacts();
+}
+
+function advanceStatus(id) {
+  const c = allContacts.find(c => c.id === id);
+  if (!c) return;
+  const next = cycleStatus(c.status);
+  if (next === c.status) return;
+  c.status = next; // optimistic
+  renderContacts();
+  renderStats();
+  patchContact(id, { status: next });
+}
+
+function scheduleRowSave(id) {
+  const ind = document.getElementById(`save-ind-${id}`);
+  if (ind) { ind.textContent = 'Saving...'; ind.className = 'save-indicator saving'; }
+  if (saveTimers[id]) clearTimeout(saveTimers[id]);
+  saveTimers[id] = setTimeout(async () => {
+    const ta = document.getElementById(`notes-${id}`);
+    if (!ta) return;
+    const result = await patchContact(id, { call_notes: ta.value });
+    if (ind) {
+      if (result) {
+        ind.textContent = 'Saved'; ind.className = 'save-indicator saved';
+        setTimeout(() => { if (ind) { ind.textContent = ''; ind.className = 'save-indicator'; } }, 2000);
+      } else {
+        ind.textContent = 'Save failed'; ind.className = 'save-indicator';
+      }
+    }
+  }, 1500);
+}
+
+function saveEmail(id) {
+  const el = document.getElementById(`email-edit-${id}`);
+  if (!el) return;
+  patchContact(id, { email: el.value });
+}
+
+function scheduleContactFieldSave(id) {
+  if (contactFieldTimers[id]) clearTimeout(contactFieldTimers[id]);
+  contactFieldTimers[id] = setTimeout(async () => {
+    const nameEl = document.getElementById(`name-edit-${id}`);
+    const firmEl = document.getElementById(`firm-edit-${id}`);
+    const updates = {};
+    if (nameEl) updates.name = nameEl.value;
+    if (firmEl) updates.firm = firmEl.value;
+    if (!Object.keys(updates).length) return;
+    await patchContact(id, updates);
+  }, 1200);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Call Prep Tab
+   ═══════════════════════════════════════════════════════ */
+function populateCallprepSelect() {
+  const sel = document.getElementById('callprep-select');
+  const currentVal = sel.value;
+
+  sel.innerHTML = '<option value="">— Choose a contact —</option>';
+  const sorted = [...allContacts].sort((a, b) => (a.name||'').localeCompare(b.name||''));
+  for (const c of sorted) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.name || c.id} — ${c.firm || ''}`;
+    sel.appendChild(opt);
+  }
+
+  // Restore selection if still valid
+  if (currentVal && allContacts.some(c => c.id === currentVal)) {
+    sel.value = currentVal;
+  }
+}
+
+function loadDossier() {
+  const sel = document.getElementById('callprep-select');
+  const id = sel.value;
+  const empty = document.getElementById('callprep-empty');
+  const dossier = document.getElementById('callprep-dossier');
+
+  if (!id) {
+    empty.style.display = 'block';
+    dossier.classList.remove('visible');
+    callprepContactId = null;
+    return;
+  }
+
+  const c = allContacts.find(c => c.id === id);
+  if (!c) return;
+  callprepContactId = id;
+
+  empty.style.display = 'none';
+  dossier.classList.add('visible');
+  renderDossier(c);
+}
+
+function renderDossier(c) {
+  // Header card
+  const headerCard = document.getElementById('dossier-header-card');
+  const liBtn = c.linkedin_url
+    ? `<a href="${c.linkedin_url}" target="_blank">LinkedIn ↗</a>`
+    : '';
+  headerCard.innerHTML = `
+    <div class="dossier-topbar">
+      <div>
+        <div class="dossier-name">${escHtml(c.name||'')}</div>
+        <div class="dossier-meta">
+          <span>${escHtml(c.firm||'')}</span>
+          ${c.email ? `<span class="sep">·</span><span>${escHtml(c.email)}</span>` : ''}
+          <span class="sep">·</span>
+          ${badgeHtml(c.status)}
+          ${liBtn ? `<span class="sep">·</span>${liBtn}` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // Research
+  document.getElementById('dossier-research').textContent = c.research || 'No research notes.';
+
+  // Notes (preserve cursor if already focused)
+  const notesEl = document.getElementById('dossier-notes');
+  const focused = document.activeElement === notesEl;
+  if (!focused) {
+    notesEl.value = c.call_notes || '';
+  }
+}
+
+function updateDossierNonDestructive(c) {
+  // Update header only (notes may be actively edited)
+  const headerCard = document.getElementById('dossier-header-card');
+  if (headerCard && headerCard.innerHTML) renderDossier(c);
+}
+
+function scheduleAutosave() {
+  const dot = document.getElementById('autosave-dot');
+  const lbl = document.getElementById('autosave-label');
+  dot.className = 'autosave-dot saving';
+  lbl.className = 'autosave-label saving';
+  lbl.textContent = 'Saving...';
+
+  if (callprepSaveTimer) clearTimeout(callprepSaveTimer);
+  callprepSaveTimer = setTimeout(async () => {
+    const ta = document.getElementById('dossier-notes');
+    if (!ta || !callprepContactId) return;
+    const result = await patchContact(callprepContactId, { call_notes: ta.value });
+    if (result) {
+      dot.className = 'autosave-dot saved';
+      lbl.className = 'autosave-label saved';
+      lbl.textContent = 'Auto-saved';
+      setTimeout(() => {
+        dot.className = 'autosave-dot';
+        lbl.className = 'autosave-label';
+        lbl.textContent = '';
+      }, 2500);
+    } else {
+      lbl.textContent = 'Save failed';
+      lbl.className = 'autosave-label';
+    }
+  }, 1500);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════ */
+function escHtml(str) {
+  return (str||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function escAttr(str) { return escHtml(str); }
+
+/* ═══════════════════════════════════════════════════════
+   Email Queue Tab
+   ═══════════════════════════════════════════════════════ */
+async function fetchQueue() {
+  try {
+    const res = await fetch('/api/queue');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    queueData = await res.json();
+    if (document.getElementById('tab-queue').classList.contains('active')) renderQueue();
+  } catch (err) {
+    console.warn('Queue fetch failed:', err);
+  }
+}
+
+function fmtQueueTime(iso) {
+  if (!iso) return '';
+  const match = iso.match(/T(\d{2}):(\d{2})/);
+  if (!match) return iso;
+  const h = parseInt(match[1]);
+  const m = match[2];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
+}
+
+function fmtQueueDateLong(iso) {
+  if (!iso) return '';
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return iso;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(match[2])-1]} ${parseInt(match[3])}, ${match[1]}`;
+}
+
+function getDateKey(iso) {
+  const match = (iso||'').match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+}
+
+function renderQueue() {
+  const wrap = document.getElementById('queue-content');
+  if (!wrap) return;
+
+  if (!queueData || queueData.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><h3>No emails queued</h3><p style="margin-top:10px;">Queue emails with <code>python main.py</code></p></div>`;
+    return;
+  }
+
+  const byDate = {};
+  for (const item of queueData) {
+    const key = getDateKey(item.scheduled_at);
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(item);
+  }
+
+  const sortedDates = Object.keys(byDate).sort();
+  let html = '';
+
+  for (const dateKey of sortedDates) {
+    const items = byDate[dateKey].sort((a, b) => (a.scheduled_at||'').localeCompare(b.scheduled_at||''));
+    const types = items.map(i => i.type || 'cold');
+    const hasFollowup = types.includes('followup');
+    const hasCold = types.some(t => t !== 'followup');
+    const waveClass = hasFollowup && hasCold ? 'wave-mixed' : hasFollowup ? 'wave-followup' : 'wave-cold';
+    const waveLabel = hasFollowup && hasCold ? 'Mixed' : hasFollowup ? 'Follow-ups' : 'Cold Outreach';
+
+    html += `
+      <div class="queue-date-block">
+        <div class="queue-date-header">
+          <span class="queue-date-title">${fmtQueueDateLong(dateKey)}</span>
+          <span class="queue-date-count">${items.length} email${items.length !== 1 ? 's' : ''}</span>
+          <span class="queue-wave ${waveClass}">${waveLabel}</span>
+        </div>
+        <div class="contacts-table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Name</th><th>To</th><th>Subject</th><th>Type</th></tr></thead>
+            <tbody>`;
+
+    for (const item of items) {
+      const time = fmtQueueTime(item.scheduled_at);
+      const name = escHtml(item.name || '—');
+      const validEmail = item.to && item.to.includes('@');
+      const to = validEmail ? escHtml(item.to) : '<span style="color:#ff453a;font-size:11px;">⚠ missing</span>';
+      const subj = escHtml((item.subject||'').substring(0, 55)) + ((item.subject||'').length > 55 ? '…' : '');
+      const type = item.type === 'followup' ? 'followup' : 'cold';
+      const typeLabel = type === 'followup' ? 'Follow-up' : 'Cold';
+      const liLink = item.linkedin_url
+        ? `<a href="${item.linkedin_url}" target="_blank" onclick="event.stopPropagation()" style="color:#4c9eff;font-size:12px;text-decoration:none;">↗</a>`
+        : '';
+      html += `
+        <tr>
+          <td class="time-col">${time}</td>
+          <td class="name-col">${name} ${liLink}</td>
+          <td class="to-col">${to}</td>
+          <td class="subj-col">${subj}</td>
+          <td><span class="type-tag type-${type}">${typeLabel}</span></td>
+        </tr>`;
+    }
+
+    html += `</tbody></table></div></div>`;
+  }
+
+  document.getElementById('queue-content').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Connections Tab
+   ═══════════════════════════════════════════════════════ */
+async function fetchConnections() {
+  try {
+    const res = await fetch('/api/connections');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    connectionsData = await res.json();
+    if (document.getElementById('tab-connections').classList.contains('active')) renderConnections();
+  } catch (err) {
+    console.warn('Connections fetch failed:', err);
+  }
+}
+
+function toggleConnExpand(id) {
+  expandedConnId = (expandedConnId === id) ? null : id;
+  renderConnections();
+}
+
+async function patchConnection(id, updates) {
+  try {
+    const res = await fetch(`/api/connections/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const updated = await res.json();
+    const idx = connectionsData.findIndex(c => c.id === id);
+    if (idx !== -1) connectionsData[idx] = updated;
+    return updated;
+  } catch (err) {
+    console.error('Connection PATCH failed:', err);
+    return null;
+  }
+}
+
+function scheduleConnSave(id) {
+  const ind = document.getElementById(`conn-save-ind-${id}`);
+  if (ind) { ind.textContent = 'Saving...'; ind.className = 'save-indicator saving'; }
+  if (connSaveTimers[id]) clearTimeout(connSaveTimers[id]);
+  connSaveTimers[id] = setTimeout(async () => {
+    const notes     = document.getElementById(`conn-notes-${id}`)?.value;
+    const lastCalled = document.getElementById(`conn-last-${id}`)?.value;
+    const nextCall  = document.getElementById(`conn-next-${id}`)?.value;
+    const status    = document.getElementById(`conn-status-${id}`)?.value;
+    const updates = {};
+    if (notes     !== undefined) updates.notes      = notes;
+    if (lastCalled !== undefined) updates.last_called = lastCalled || null;
+    if (nextCall  !== undefined) updates.next_call  = nextCall  || null;
+    if (status    !== undefined) updates.status     = status;
+    const result = await patchConnection(id, updates);
+    if (ind) {
+      if (result) {
+        ind.textContent = 'Saved'; ind.className = 'save-indicator saved';
+        setTimeout(() => { if (ind) { ind.textContent = ''; ind.className = 'save-indicator'; } }, 2000);
+      } else {
+        ind.textContent = 'Save failed'; ind.className = 'save-indicator';
+      }
+    }
+    // Refresh call-reminder badge in header row without closing the expand
+    const badgeEl = document.getElementById(`conn-badge-${id}`);
+    if (badgeEl && result) badgeEl.innerHTML = callReminderBadge(result);
+  }, 1200);
+}
+
+function connCalledToday(id) {
+  const today = new Date().toISOString().slice(0, 10);
+  const nd = new Date(); nd.setDate(nd.getDate() + 14);
+  const nextCall = nd.toISOString().slice(0, 10);
+  const lastEl = document.getElementById(`conn-last-${id}`);
+  const nextEl = document.getElementById(`conn-next-${id}`);
+  if (lastEl) lastEl.value = today;
+  if (nextEl) nextEl.value = nextCall;
+  patchConnection(id, { last_called: today, next_call: nextCall }).then(result => {
+    if (result) renderConnections();
+    expandedConnId = id; // keep it open
+  });
+}
+
+function callReminderBadge(conn) {
+  if (conn.status === 'ghost') return `<span class="call-badge call-ghost">Ghost</span>`;
+  if (!conn.next_call) return `<span class="call-badge call-none">No reminder set</span>`;
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const due = new Date(conn.next_call + 'T12:00:00');
+  const diffDays = Math.round((due - today) / 86400000);
+
+  if (diffDays < 0) {
+    const abs = Math.abs(diffDays);
+    return `<span class="call-badge call-overdue">⚠ Overdue by ${abs}d</span>`;
+  }
+  if (diffDays === 0) return `<span class="call-badge call-overdue">Call Today</span>`;
+  if (diffDays <= 7) {
+    const label = fmtDate(conn.next_call);
+    return `<span class="call-badge call-soon">Call by ${label}</span>`;
+  }
+  const label = fmtDate(conn.next_call);
+  return `<span class="call-badge call-upcoming">Next: ${label}</span>`;
+}
+
+function fmtLastCalled(dateStr) {
+  if (!dateStr) return `<span class="conn-never">Never called</span>`;
+  const d = new Date(dateStr + 'T12:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diffDays = Math.round((today - d) / 86400000);
+  const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  let ago = '';
+  if (diffDays === 0) ago = 'Today';
+  else if (diffDays === 1) ago = 'Yesterday';
+  else ago = `${diffDays}d ago`;
+  return `<span class="conn-last-called">${label} <span style="color:#5a5a68">(${ago})</span></span>`;
+}
+
+function renderConnections() {
+  const wrap = document.getElementById('connections-content');
+  if (!wrap) return;
+
+  const active = connectionsData.filter(c => c.status !== 'ghost');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const overdue = active.filter(c => {
+    if (!c.next_call) return false;
+    const due = new Date(c.next_call + 'T12:00:00');
+    return due < today;
+  });
+  const dueSoon = active.filter(c => {
+    if (!c.next_call) return false;
+    const due = new Date(c.next_call + 'T12:00:00');
+    const diffDays = Math.round((due - today) / 86400000);
+    return diffDays >= 0 && diffDays <= 7;
+  });
+
+  document.getElementById('conn-stat-total').textContent    = connectionsData.length;
+  document.getElementById('conn-stat-active').textContent   = active.length;
+  document.getElementById('conn-stat-overdue').textContent  = overdue.length;
+  document.getElementById('conn-stat-due-soon').textContent = dueSoon.length;
+
+  if (connectionsData.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><h3>No connections yet</h3></div>`;
+    return;
+  }
+
+  let html = `
+    <div class="contacts-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Context</th>
+            <th>Last Called</th>
+            <th>Call Reminder</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  connectionsData.forEach((c, idx) => {
+    const isExpanded = expandedConnId === c.id;
+    const ghostOpacity = c.status === 'ghost' ? 'style="opacity:0.4;"' : '';
+    const expandedCls = isExpanded ? 'expanded' : '';
+    const notesPreview = (c.notes || '').length > 50
+      ? c.notes.substring(0,50) + '…'
+      : (c.notes || '—');
+
+    html += `
+      <tr class="conn-row ${expandedCls}" ${ghostOpacity} onclick="toggleConnExpand('${c.id}')">
+        <td class="num-col">${idx+1}</td>
+        <td class="name-col">${escHtml(c.name||'')}</td>
+        <td class="type-col">${escHtml(c.context||'')}</td>
+        <td>${fmtLastCalled(c.last_called)}</td>
+        <td id="conn-badge-${c.id}">${callReminderBadge(c)}</td>
+        <td class="conn-notes-col">${escHtml(notesPreview)}</td>
+      </tr>`;
+
+    if (isExpanded) {
+      const selActive = c.status === 'active' ? 'selected' : '';
+      const selGhost  = c.status === 'ghost'  ? 'selected' : '';
+      html += `
+      <tr class="conn-expand-row">
+        <td colspan="6">
+          <div class="conn-expand-inner">
+            <div class="conn-expand-top">
+              <button class="btn-called-today" onclick="event.stopPropagation();connCalledToday('${c.id}')">&#10003; Called Today</button>
+              <select class="status-select" id="conn-status-${c.id}"
+                      onclick="event.stopPropagation()" onchange="scheduleConnSave('${c.id}')">
+                <option value="active" ${selActive}>Active</option>
+                <option value="ghost"  ${selGhost}>Ghost</option>
+              </select>
+              <span class="save-indicator" id="conn-save-ind-${c.id}"></span>
+            </div>
+            <div class="conn-expand-body">
+              <div class="expand-section">
+                <h4>Notes</h4>
+                <textarea class="notes-textarea" id="conn-notes-${c.id}"
+                          onclick="event.stopPropagation()"
+                          oninput="scheduleConnSave('${c.id}')">${escHtml(c.notes||'')}</textarea>
+              </div>
+              <div class="expand-section">
+                <h4>Last Called</h4>
+                <input type="date" class="date-input" id="conn-last-${c.id}"
+                       value="${c.last_called||''}"
+                       onclick="event.stopPropagation()"
+                       onchange="scheduleConnSave('${c.id}')">
+                <h4 style="margin-top:14px;">Next Call Reminder</h4>
+                <input type="date" class="date-input" id="conn-next-${c.id}"
+                       value="${c.next_call||''}"
+                       onclick="event.stopPropagation()"
+                       onchange="scheduleConnSave('${c.id}')">
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  html += `</tbody></table></div>
+    <p style="margin-top:16px;font-size:12px;color:#5a5a68;">
+      Click any row to edit. "Called Today" sets last called to today and schedules a reminder in 2 weeks.
+    </p>`;
+  wrap.innerHTML = html;
+}
+
+function goToContact(id) {
+  switchTab('contacts');
+  expandedId = id;
+  currentFilter = 'all';
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-filter="all"]').classList.add('active');
+  renderContacts();
+  setTimeout(() => {
+    const row = document.querySelector('tr.expanded');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Incoming Analysts Tab
+   ═══════════════════════════════════════════════════════ */
+const INCOMING_FIRMS = [
+  { id: 'gs',         name: 'Goldman Sachs',        type: 'Bulge Bracket' },
+  { id: 'jpm',        name: 'JPMorgan',              type: 'Bulge Bracket' },
+  { id: 'citi',       name: 'Citi',                  type: 'Bulge Bracket' },
+  { id: 'ms',         name: 'Morgan Stanley',        type: 'Bulge Bracket' },
+  { id: 'bofa',       name: 'Bank of America',       type: 'Bulge Bracket' },
+  { id: 'ubs',        name: 'UBS',                   type: 'BB / Swiss' },
+  { id: 'barclays',   name: 'Barclays',              type: 'Bulge Bracket' },
+  { id: 'nomura',     name: 'Nomura',                type: 'BB / Japanese' },
+  { id: 'deutsche',   name: 'Deutsche Bank',         type: 'Bulge Bracket' },
+  { id: 'jefferies',  name: 'Jefferies',             type: 'Middle Market' },
+  { id: 'moelis',     name: 'Moelis & Company',      type: 'Elite Boutique' },
+  { id: 'lazard',     name: 'Lazard',                type: 'Elite Boutique' },
+  { id: 'blackstone', name: 'Blackstone',            type: 'PE / Alts' },
+  { id: 'mid-europa', name: 'Mid Europa Partners',   type: 'PE' },
+  { id: 'search',     name: 'Search Fund Community', type: 'ETA / Search' },
+];
+
+const INCOMING_KEY = 'networking_hub_incoming';
+
+function renderIncoming() {
+  const saved = JSON.parse(localStorage.getItem(INCOMING_KEY) || '{}');
+  const tbody = document.getElementById('incoming-tbody');
+  if (!tbody) return;
+
+  let messaged = 0;
+  tbody.innerHTML = INCOMING_FIRMS.map((f, idx) => {
+    const s = saved[f.id] || {};
+    const searched  = !!s.searched;
+    const contacted = !!s.contacted;
+    const notes     = s.notes || '';
+    if (contacted) messaged++;
+    const doneCls = contacted ? 'todo-done' : '';
+    return `
+      <tr class="${doneCls}" id="incoming-row-${f.id}">
+        <td class="num-col">${idx + 1}</td>
+        <td class="name-col">${f.name}</td>
+        <td class="type-col">${f.type}</td>
+        <td class="check-col">
+          <input type="checkbox" class="todo-check" ${searched ? 'checked' : ''}
+                 onchange="toggleIncoming('${f.id}','searched',this.checked)">
+        </td>
+        <td class="check-col">
+          <input type="checkbox" class="todo-check" ${contacted ? 'checked' : ''}
+                 onchange="toggleIncoming('${f.id}','contacted',this.checked)">
+        </td>
+        <td>
+          <input class="inline-note-input" placeholder="Names found, LinkedIn URLs, dates..."
+                 value="${escAttr(notes)}"
+                 onchange="saveIncomingNote('${f.id}', this.value)">
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Progress bar
+  const pct = Math.round((messaged / INCOMING_FIRMS.length) * 100);
+  const fill  = document.getElementById('incoming-progress-fill');
+  const label = document.getElementById('incoming-progress-label');
+  if (fill)  fill.style.width = pct + '%';
+  if (label) label.textContent = `${messaged} / ${INCOMING_FIRMS.length} firms messaged`;
+}
+
+function toggleIncoming(id, field, checked) {
+  const saved = JSON.parse(localStorage.getItem(INCOMING_KEY) || '{}');
+  if (!saved[id]) saved[id] = {};
+  saved[id][field] = checked;
+  localStorage.setItem(INCOMING_KEY, JSON.stringify(saved));
+  renderIncoming();
+}
+
+function saveIncomingNote(id, value) {
+  const saved = JSON.parse(localStorage.getItem(INCOMING_KEY) || '{}');
+  if (!saved[id]) saved[id] = {};
+  saved[id].notes = value;
+  localStorage.setItem(INCOMING_KEY, JSON.stringify(saved));
+}
+
+/* ═══════════════════════════════════════════════════════
+   General To-Do's Tab
+   ═══════════════════════════════════════════════════════ */
+const TODO_KEY = 'networking_hub_todos';
+
+function toggleTodo(checkbox, id) {
+  const row = checkbox.closest('tr');
+  const saved = JSON.parse(localStorage.getItem(TODO_KEY) || '{}');
+  if (checkbox.checked) {
+    row.classList.add('todo-done');
+    saved[id] = true;
+  } else {
+    row.classList.remove('todo-done');
+    delete saved[id];
+  }
+  localStorage.setItem(TODO_KEY, JSON.stringify(saved));
+}
+
+function restoreTodos() {
+  const saved = JSON.parse(localStorage.getItem(TODO_KEY) || '{}');
+  document.querySelectorAll('.todo-check').forEach(cb => {
+    const id = cb.getAttribute('onchange').match(/'([^']+)'\)/)[1];
+    if (saved[id]) {
+      cb.checked = true;
+      cb.closest('tr').classList.add('todo-done');
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   Boot
+   ═══════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('resize', () => {
+    if (allContacts.length > 0) renderTimeline();
+  });
+  restoreTodos();
+  renderIncoming();
+  startPolling();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+# --- Secrets and credentials -------------------------------------------------
+.env
+credentials.json
+token.json
+data/linkedin_session.json
+
+# --- Real personal data (never commit) ---------------------------------------
+# Only the committed *.example.* twins belong in git. See docs/DESIGN.md.
+data/profile.json
+data/contacts.json
+data/personal_connections.json
+data/profiles.csv
+data/scheduled_queue.json
+data/followup_state.json
+data/processed_urls.txt
+data/cron_send.log
+data/drafts/
+urls.local.txt
+voice.txt
+best_emails.txt
+
+# --- Binary personal documents ----------------------------------------------
+*.pdf
+*.docx
+*.xlsx
+resume.txt
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- OS / editor -------------------------------------------------------------
+.DS_Store
+.claude/
+
+# --- Always keep the synthetic examples --------------------------------------
+!data/*.example.json
+!data/*.example.csv

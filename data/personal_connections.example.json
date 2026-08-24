@@ -1,0 +1,20 @@
+[
+  {
+    "id": "example-harper-vasquez",
+    "name": "Harper Vasquez",
+    "context": "University peer, summer analyst at a search fund",
+    "last_called": "2029-01-02",
+    "next_call": "2029-02-02",
+    "status": "active",
+    "notes": ""
+  },
+  {
+    "id": "example-devin-shah",
+    "name": "Devin Shah",
+    "context": "Family contact, corporate development",
+    "last_called": null,
+    "next_call": "2029-01-15",
+    "status": "active",
+    "notes": "Schedule an intro call."
+  }
+]

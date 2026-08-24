@@ -1,0 +1,57 @@
+{
+  "contacts": [
+    {
+      "id": "example-casey-lindqvist",
+      "name": "Casey Lindqvist",
+      "firm": "Northwind Partners",
+      "email": "casey.lindqvist@example.com",
+      "linkedin_url": "https://www.linkedin.com/in/example-casey-lindqvist/",
+      "research": "Wrote a public primer on take-private structures.",
+      "status": "queued",
+      "email_type": "cold",
+      "tags": ["peer"],
+      "call_notes": "",
+      "subject": "Take-private primer",
+      "scheduled_at": "2029-01-09T09:12:00-05:00",
+      "sent_at": "",
+      "last_updated": "2029-01-05T14:00:00"
+    },
+    {
+      "id": "example-priya-raman",
+      "name": "Priya Raman",
+      "firm": "Cedar Harbor Advisors",
+      "email": "priya.raman@example.com",
+      "linkedin_url": "https://www.linkedin.com/in/example-priya-raman/",
+      "research": "Moved from buy-side credit to advisory in 2027.",
+      "status": "sent",
+      "email_type": "cold",
+      "tags": ["vp"],
+      "call_notes": "",
+      "subject": "Credit to advisory move",
+      "scheduled_at": "",
+      "sent_at": "2029-01-03T08:47:00-05:00",
+      "last_updated": "2029-01-03T08:47:00"
+    },
+    {
+      "id": "example-mei-tanaka",
+      "name": "Mei Tanaka",
+      "firm": "Northwind Partners",
+      "email": "mei.tanaka@example.com",
+      "linkedin_url": "https://www.linkedin.com/in/example-mei-tanaka/",
+      "research": "Quant researcher before moving into banking.",
+      "status": "replied",
+      "email_type": "cold",
+      "tags": ["quant", "warm"],
+      "call_notes": "Call set for next Tuesday. Wants to talk modeling workflow.",
+      "subject": "Quant research to banking",
+      "scheduled_at": "",
+      "sent_at": "2028-12-19T09:05:00-05:00",
+      "last_updated": "2028-12-21T11:20:00"
+    }
+  ],
+  "meta": {
+    "created": "2028-12-01T00:00:00",
+    "version": "1.0",
+    "note": "Synthetic sample data. Real contacts live in data/contacts.json, which is gitignored."
+  }
+}

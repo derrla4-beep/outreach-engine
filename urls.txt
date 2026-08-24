@@ -1,0 +1,9 @@
+# Add LinkedIn profile URLs below, one per line.
+# Optional: add a personal note after a pipe " | " to focus the email on a specific angle.
+# Examples:
+#   https://www.linkedin.com/in/example-someone/ | played college baseball, lead with the sport hook
+#   https://www.linkedin.com/in/example-someone/ | founded a campus fund, ask how they got it off the ground
+# Already-processed URLs are tracked in data/processed_urls.txt and are skipped automatically.
+#
+# This file is a template. Your own list is personal data about real people —
+# keep it local and out of version control.
