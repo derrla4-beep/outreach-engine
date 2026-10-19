@@ -1,107 +1,40 @@
-"""Runtime configuration.
-
-Nothing in this file is personal. The operator's identity, background, and
-credibility hooks live in `data/profile.json` (gitignored); a fictional
-`data/profile.example.json` is committed so the project runs out of the box.
-"""
-
-import json
 import os
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-PROFILE_FILE = os.path.join(BASE, "data", "profile.json")
-PROFILE_EXAMPLE_FILE = os.path.join(BASE, "data", "profile.example.json")
+# EDIT THESE: your name (signs the follow-ups and names the resume attachment) and the
+# Gmail address you send from (the account you log in with).
+MY_BACKGROUND = {
+    "name": "Your Name",
+    "email": "you@example.com",
+}
 
 
-def resolve_data_file(filename: str) -> str:
-    """Resolve a file in data/, falling back to its committed `.example` twin.
+def _resume_pdfs() -> list:
+    """Root PDFs with 'resume' in the name, newest first.
 
-    Real operator data (contacts, queues, profiles) is gitignored, so a fresh
-    clone has only the `.example` files. Reads go through here; writes always
-    target the real filename so example data is never mutated.
+    Newest first, so dropping in an updated resume wins over an older copy that
+    happens to sort earlier in the directory listing.
     """
-    real = os.path.join(BASE, "data", filename)
-    if os.path.exists(real):
-        return real
-    stem, ext = os.path.splitext(filename)
-    example = os.path.join(BASE, "data", stem + ".example" + ext)
-    return example if os.path.exists(example) else real
+    names = [
+        f for f in os.listdir(_BASE_DIR)
+        if "resume" in f.lower() and f.lower().endswith(".pdf") and not f.startswith(("~$", "#"))
+    ]
+    names.sort(key=lambda f: os.path.getmtime(os.path.join(_BASE_DIR, f)), reverse=True)
+    return names
 
 
-def data_path(filename: str) -> str:
-    """Absolute path to a file in data/, for writes."""
-    return os.path.join(BASE, "data", filename)
-
-
-def _load_profile() -> dict:
-    """Load the operator profile, preferring the real one over the example."""
-    for path in (PROFILE_FILE, PROFILE_EXAMPLE_FILE):
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                profile = json.load(f)
-            if path is PROFILE_EXAMPLE_FILE:
-                print("[profile] Using data/profile.example.json — copy it to "
-                      "data/profile.json and fill in your own details.")
-            return profile
-    raise FileNotFoundError(
-        "No profile found. Copy data/profile.example.json to data/profile.json "
-        "and fill in your details."
-    )
-
-
-def _load_resume_text() -> str:
-    """Load resume text from any PDF/TXT file containing 'resume' in its name.
-
-    Resumes are gitignored, so this returns "" in a fresh clone and the
-    generator falls back to the profile's structured background.
-    """
-    for fname in os.listdir(BASE):
-        if "resume" in fname.lower() and fname.lower().endswith(".pdf"):
-            try:
-                import pdfplumber
-                with pdfplumber.open(os.path.join(BASE, fname)) as pdf:
-                    pages = [page.extract_text() or "" for page in pdf.pages]
-                text = "\n".join(pages).strip()
-                if text:
-                    print(f"[resume] Loaded from {fname}")
-                    return text
-            except Exception as e:
-                print(f"[warning] Could not parse {fname}: {e}")
-
-    txt_path = os.path.join(BASE, "resume.txt")
-    if os.path.exists(txt_path):
-        with open(txt_path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-
-    return ""
-
-
-def _load_text_file(filename: str) -> str:
-    path = os.path.join(BASE, filename)
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    return ""
-
-
-MY_BACKGROUND = _load_profile()
-RESUME_TEXT = _load_resume_text()
-
-# Optional local style inputs (both gitignored — see .gitignore).
-#   voice.txt       a few paragraphs in your own writing, for tone matching
-#   best_emails.txt outreach emails of yours that actually got replies
-VOICE_TEXT = _load_text_file("voice.txt")
-BEST_EMAILS_TEXT = _load_text_file("best_emails.txt")
+# Resume PDF attached to every outreach email: put a PDF with "resume" in its name in
+# the repo root (PDFs are gitignored). Recipients see it as RESUME_ATTACHMENT_NAME, not
+# the local filename. With no PDF, emails go out without the attachment or the P.S.
+_pdfs = _resume_pdfs()
+RESUME_PDF = os.path.join(_BASE_DIR, _pdfs[0]) if _pdfs else ""
+RESUME_ATTACHMENT_NAME = MY_BACKGROUND["name"].replace(" ", "_") + "_Resume.pdf"
 
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
 ]
 
-SENT_EMAILS_TO_SAMPLE = 10
-
-GMAIL_CREDENTIALS_FILE = "credentials.json"
-GMAIL_TOKEN_FILE = "token.json"
-
-ANTHROPIC_MODEL = "claude-sonnet-4-6"
+GMAIL_CREDENTIALS_FILE = os.path.join(_BASE_DIR, "credentials.json")
+GMAIL_TOKEN_FILE = os.path.join(_BASE_DIR, "token.json")

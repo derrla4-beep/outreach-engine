@@ -1,149 +1,82 @@
 # Setup Guide
 
+About 20 minutes, once.
+
 ## 1. Install dependencies
+
+Python 3.10 or newer.
 
 ```bash
 pip install -r requirements.txt
-playwright install chromium   # only if you plan to use --urls scraping mode
 ```
 
-## 2. Create your profile
+(On Windows the command is usually `python`; on Mac/Linux it may be `python3`.)
 
-Everything about the sender lives in one gitignored file:
+## 2. Make it yours
 
-```bash
-cp data/profile.example.json data/profile.json
-```
+| File | What to do |
+|---|---|
+| `config.py` | Set `MY_BACKGROUND` to your name and the Gmail address you'll send from. |
+| `knowledge_base.md` | Paste your resume and fill in your background. Claude only writes facts that are in here. |
+| `email_rules.md` | Fill in "About the sender" and your credibility hooks. The rest works as-is. |
+| `followups.py` | Optional: reword the two follow-up messages in `TEMPLATES`, and add your school's email domain to `PUBLIC_DOMAINS`. |
+| `CLAUDE.md` | Optional: list warm contacts under "Warm Contact Reminders". |
+| Resume PDF | Drop your resume in the repo root with "resume" in the filename. It's attached to every original email (and gitignored). |
 
-Edit it: name, email, LinkedIn, school, target role, differentiators, and the
-`credibility_hooks` list. Each hook needs a `summary` (the concrete thing you did) and a
-`use_when` (the signal in the recipient's background that makes it the right pick). Mark
-exactly one hook `"is_default": true` — it is the fallback when nothing matches.
+Tip: open the folder in Claude Code and say "help me fill in knowledge_base.md and
+email_rules.md". It will interview you.
 
-If you skip this step the tool runs against `data/profile.example.json` with a fictional
-sender, which is useful for seeing the pipeline work but not for sending real mail.
+## 3. Gmail API (read the inbox for replies, send email)
 
-## 3. Set your Anthropic API key
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-Or create a `.env` file (gitignored):
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Get a key at https://console.anthropic.com/
-
-## 4. Set up the Gmail API
-
-Needed to sample your sent mail for tone, create drafts, and send. Skip with `--no-gmail`.
-
-### 4a. Create a Google Cloud project
+### 3a. Google Cloud project
 
 1. Go to https://console.cloud.google.com/
-2. Create a project
-3. **APIs & Services** → **Library** → search **Gmail API** → Enable
+2. Create a project (e.g. "Outreach")
+3. **APIs & Services** -> **Library** -> enable **Gmail API**
 
-### 4b. Create OAuth2 credentials
+### 3b. OAuth consent screen
 
-1. **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**
-2. Application type: **Desktop app**
-3. **Create** → **Download JSON**
-4. Rename it to `credentials.json` in the project root (gitignored)
+1. **APIs & Services** -> **OAuth consent screen**, User Type **External**
+2. **Scopes**: `gmail.readonly` and `gmail.compose`
+3. **Test users**: add the Gmail address you set in `config.py`
 
-### 4c. Configure the OAuth consent screen
+### 3c. OAuth credentials
 
-1. **APIs & Services** → **OAuth consent screen**
-2. User Type: **External** (for a personal Gmail account)
-3. Fill in an app name and your email
-4. **Scopes**: add `gmail.readonly` and `gmail.compose`
-5. **Test users**: add your own Gmail address
+1. **APIs & Services** -> **Credentials** -> **+ Create Credentials** -> **OAuth client ID**
+2. Application type: **Desktop app** -> **Create** -> **Download JSON**
+3. Rename it to `credentials.json` and put it in the repo root (it's gitignored)
 
-### 4d. Authenticate
+### 3d. Log in
 
-```bash
-python main.py --auth
-```
+The first command that touches Gmail (for example `python main.py --stats`) opens a
+browser to log in and saves `token.json` in the repo root. After that it refreshes itself.
+If the OAuth app is still in "Testing" status, Google expires the login after 7 days; the
+next command then opens the browser to log in again (publishing the app avoids this).
 
-Opens a browser once and saves `token.json` locally (gitignored).
+### 3e. Signature
 
----
+Original emails end with the Gmail signature set as **Settings > General > Signature
+defaults > For new emails use**. Set that to the signature you want on outreach (name,
+school, phone, LinkedIn). Follow-ups don't use it; they're signed with your name from
+`config.py`.
 
-## Usage
-
-### CSV mode (recommended)
-
-```bash
-python main.py --template     # writes data/profiles.csv
-# fill it in, then:
-python main.py --csv
-```
-
-For each generated email you can save it to a file, push it as a Gmail draft, or queue it
-for timezone-aware sending.
-
-### URL mode
+## 4. Check it works
 
 ```bash
-echo "https://www.linkedin.com/in/someone/ | played college baseball, lead with that" >> urls.txt
-python main.py --urls urls.txt
+python -m pytest tests                 # follow-up safety tests, no Gmail needed
+python main.py --send-now --dry-run    # walk the queue, send nothing
+python main.py --followups --dry-run   # see who would get a follow-up today
+python main.py --stats                 # reply rates
 ```
 
-First run opens a browser to log in to LinkedIn; the session is saved. LinkedIn blocks
-scraping aggressively — CSV mode is the reliable path.
+## Data files (`data/`)
 
-### The send queue and follow-ups
+These start empty and fill up as you use the tool. They hold your contacts' names and
+emails, so keep your own copy of the repo **private**.
 
-```bash
-python main.py --list-queue    # what's pending
-python main.py --send-queue    # send anything now due
-python main.py --followup      # scan threads, queue follow-ups
-```
-
-`--send-queue` is the command to put on a cron job or scheduled task; it is a no-op when
-nothing is due.
-
-### Reviewing the pipeline
-
-```bash
-python server.py     # then open http://127.0.0.1:5000
-```
-
-Local only, no authentication. Do not expose it to a network.
-
-### Linting research notes
-
-```bash
-python main.py --check urls.txt
-```
-
-Flags hedge and unverified language in your notes before any generation happens.
-
----
-
-## CSV format
-
-| Column | Required | Description |
-|---|---|---|
-| `url` | No | LinkedIn profile URL |
-| `first_name` | Yes | First name |
-| `last_name` | Yes | Last name |
-| `title` | Yes | Current job title |
-| `company` | Yes | Current employer |
-| `school` | No | Undergraduate school |
-| `grad_year` | No | Graduation year |
-| `notes` | No | The specific angle: what they built, a career move, a shared tie |
-
-The `notes` column is what makes or breaks the email. See the tier rules in
-[docs/DESIGN.md](docs/DESIGN.md).
-
----
-
-## A note on data
-
-`data/profiles.csv`, `data/contacts.json`, and everything else holding real people's
-information is gitignored. The committed `*.example.*` files are entirely synthetic. Keep it
-that way — see [Data & privacy](docs/DESIGN.md#data--privacy).
+| File | What it is |
+|---|---|
+| `scheduled_queue.json` | Emails waiting for `--send-now` |
+| `sent_log.json` | Every email sent: thread, follow-ups, reply (backups: `sent_log.pre-*.bak.json`) |
+| `do_not_followup.txt` | Addresses that never get a follow-up (`--mark-replied` creates and adds to it) |
+| `processed_urls.txt` | LinkedIn URLs already queued |
