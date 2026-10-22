@@ -31,6 +31,10 @@ Nothing runs on a schedule. Every send is a command you run and confirm.
 
 ## Get started
 
+**New here? Read [`PLAYBOOK.md`](PLAYBOOK.md) first.** It's the full setup step by step:
+what to upload, which spreadsheets to build, the skills and add-ons to install, the weekly
+rhythm, and every lesson that took trial and error.
+
 1. Follow [`SETUP.md`](SETUP.md): install, fill in your info, connect Gmail (~20 min).
 2. Open the folder in [Claude Code](https://claude.com/claude-code) and paste a few contacts:
 
@@ -47,6 +51,7 @@ Nothing runs on a schedule. Every send is a command you run and confirm.
 
 | File | What it is |
 |---|---|
+| `PLAYBOOK.md` | **Start here.** The full setup around the code: uploads, spreadsheets, skills, lessons |
 | `knowledge_base.md` | **Fill in.** Your resume + background; the only source of facts about you |
 | `email_rules.md` | **Fill in the hooks.** The rulebook Claude writes every email by |
 | `config.py` | **Fill in.** Your name and sending address |

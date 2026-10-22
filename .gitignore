@@ -13,6 +13,9 @@ __pycache__/
 data/*.bak.json
 data/*.tmp
 
+# Your uploaded background (resume, behaviorals, essays, connections); see PLAYBOOK.md
+my_materials/
+
 # Binary personal documents
 *.pdf
 *.docx
